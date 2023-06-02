@@ -1,61 +1,90 @@
-import React, { useState } from 'react';
-import { useParams } from 'react-router';
+import React from "react";
+import { useParams } from "react-router";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faSpinner } from '@fortawesome/free-solid-svg-icons'
+const TRACK_QUERY_TEMPLATE =
+  "https://itunes.apple.com/lookup?id={collectionId}&limit=50&entity=song";
 
-const TRACK_QUERY_TEMPLATE = 'https://itunes.apple.com/lookup?id={collectionId}&limit=50&entity=song'
+const TrackList = ({ setAlertMessage }) => {
+  const [trackData, setTrackData] = React.useState([]);
+  const [isQuerying, setIsQuerying] = React.useState(false);
+  const [previewAudio, setPreviewAudio] = React.useState(null);
+  const urlParams = useParams();
 
-export default function TrackList({setAlertMessage}) { //setAlertMessage callback as prop
-  const [trackData, setTrackData] = useState([]); //tracks to show
-  const [isQuerying, setIsQuerying] = useState(false); //for spinner
-  const [previewAudio, setPreviewAudio] = useState(null); //for playing previews!
+  React.useEffect(() => {
+    setIsQuerying(true);
 
-  const urlParams = useParams(); //get album from URL
+    const trackUrl = TRACK_QUERY_TEMPLATE.replace(
+      "{collectionId}",
+      urlParams.collectionId
+    );
 
-  //YOUR CODE GOES HERE
+    fetch(trackUrl)
+      .then((response) => response.json())
+      .then((data) => {
+        setIsQuerying(false);
+        if (data.results.length > 1) {
+          data.results.splice(0, 1);
+          setTrackData(data.results);
+        } else {
+          setAlertMessage("No tracks found for album.");
+        }
+      })
+      .catch((error) => {
+        setIsQuerying(false);
+        setAlertMessage(error.message);
+      });
+  }, [urlParams.collectionId, setAlertMessage]);
 
-
-  //for fun: allow for clicking to play preview audio!
   const togglePlayingPreview = (previewUrl) => {
-    if(!previewAudio) { //nothing playing now
+    if (!previewAudio) {
       const newPreview = new Audio(previewUrl);
-      newPreview.addEventListener('ended', () => setPreviewAudio(null)) //stop on end
-      setPreviewAudio(newPreview); //rerender and save
-      newPreview.play(); //also start playing
+      newPreview.addEventListener("ended", () => setPreviewAudio(null));
+      setPreviewAudio(newPreview);
+      newPreview.play();
     } else {
-      previewAudio.pause(); //stop whatever is currently playing
-      setPreviewAudio(null); //remove it
+      previewAudio.pause();
+      setPreviewAudio(null);
     }
-  }
+  };
 
-  //sort by track number
-  trackData.sort((trackA, trackB) => trackA.trackNumber - trackB.trackNumber)
-
-  //render the track elements
+  trackData.sort((trackA, trackB) => trackA.trackNumber - trackB.trackNumber);
   const trackElemArray = trackData.map((track) => {
     let classList = "track-record";
-    if(previewAudio && previewAudio.src === track.previewUrl){
+    if (previewAudio && previewAudio.src === track.previewUrl) {
       classList += " fa-spin"; //spin if previewing
     }
 
     return (
       <div key={track.trackId}>
-        <div role="button" className={classList} onClick={() => togglePlayingPreview(track.previewUrl)}>
+        <div
+          role="button"
+          className={classList}
+          onClick={() => togglePlayingPreview(track.previewUrl)}
+        >
           <p className="track-name">{track.trackName}</p>
           <p className="track-artist">({track.artistName})</p>
         </div>
         <p className="text-center">Track {track.trackNumber}</p>
-      </div>      
-    )
-  })
+      </div>
+    );
+  });
 
   return (
     <div>
-      {isQuerying && <FontAwesomeIcon icon={faSpinner} spin size="4x" aria-label="Loading..." aria-hidden="false"/>}
-      <div className="d-flex flex-wrap">
-        {trackElemArray}
-      </div>
+      {isQuerying && (
+        <FontAwesomeIcon
+          icon={faSpinner}
+          spin
+          size="4x"
+          aria-label="Loading..."
+          aria-hidden="false"
+        />
+      )}
+      <div className="d-flex flex-wrap">{trackElemArray}</div>
     </div>
-  )
-}
+  );
+};
+
+export default TrackList;
